@@ -15,17 +15,38 @@
     <a href="frontend.html">&larr; Back to Surveys</a>
     <div class="form-section">
         <h2>Fill Out Survey</h2>
-        <div id="survey-form"></div>
+        <div id="student-name-section">
+            <label for="student-name">Enter your name:</label>
+            <input type="text" id="student-name" required>
+            <button onclick="startSurvey()">Start Survey</button>
+            <div id="name-error" class="error"></div>
+        </div>
+        <div id="survey-form" style="display:none;"></div>
         <div id="response-message"></div>
     </div>
     <script>
     const API_URL = "http://localhost:8095";
     const urlParams = new URLSearchParams(window.location.search);
     const surveyId = urlParams.get('survey_id');
+    let studentName = '';
 
     if (!surveyId) {
-        document.getElementById('survey-form').innerHTML = '<span class="error">No survey selected.</span>';
-    } else {
+        document.getElementById('student-name-section').style.display = 'none';
+        document.getElementById('survey-form').style.display = 'none';
+        document.getElementById('response-message').innerHTML = '<span class="error">No survey selected.</span>';
+    }
+
+    function startSurvey() {
+        const nameInput = document.getElementById('student-name');
+        const nameError = document.getElementById('name-error');
+        if (!nameInput.value.trim()) {
+            nameError.textContent = 'Please enter your name.';
+            return;
+        }
+        nameError.textContent = '';
+        studentName = nameInput.value.trim();
+        document.getElementById('student-name-section').style.display = 'none';
+        document.getElementById('survey-form').style.display = '';
         showSurveyForm(surveyId);
     }
 
@@ -71,7 +92,7 @@
             const resp = await fetch(`${API_URL}/surveys/${surveyId}/responses`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ answers })
+                body: JSON.stringify({ answers, student_name: studentName })
             });
             if (resp.ok) {
                 const data = await resp.json();

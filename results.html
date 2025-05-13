@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Survey Results</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2em; }
+        .survey-list { margin-bottom: 2em; }
+        .survey-item { margin-bottom: 0.5em; }
+        .form-section { margin-bottom: 2em; border: 1px solid #ccc; padding: 1em; border-radius: 8px; }
+        table { border-collapse: collapse; width: 100%; margin-top: 1em; }
+        th, td { border: 1px solid #ccc; padding: 0.5em; text-align: left; }
+        th { background: #f0f0f0; }
+    </style>
+</head>
+<body>
+    <a href="frontend.html">&larr; Back to Surveys</a>
+    <h1>Survey Results</h1>
+    <div class="survey-list form-section">
+        <h2>Available Surveys</h2>
+        <div id="surveys"></div>
+    </div>
+    <div class="form-section" id="results-section" style="display:none;">
+        <h2 id="results-title"></h2>
+        <div id="results-table"></div>
+    </div>
+    <script>
+    const API_URL = "http://localhost:8095";
+
+    async function fetchSurveys() {
+        const res = await fetch(`${API_URL}/surveys/`);
+        const surveys = await res.json();
+        const container = document.getElementById('surveys');
+        container.innerHTML = '';
+        if (surveys.length === 0) {
+            container.innerHTML = '<em>No surveys available.</em>';
+            return;
+        }
+        surveys.forEach(survey => {
+            const div = document.createElement('div');
+            div.className = 'survey-item';
+            div.innerHTML = `<b>${survey.title}</b> - ${survey.description || ''} <button onclick="showResults(${survey.id}, '${survey.title.replace(/'/g, "\'")}')">View Results</button>`;
+            container.appendChild(div);
+        });
+    }
+
+    async function showResults(surveyId, surveyTitle) {
+        document.getElementById('results-section').style.display = '';
+        document.getElementById('results-title').textContent = `Results for: ${surveyTitle}`;
+        const res = await fetch(`${API_URL}/surveys/${surveyId}/responses`);
+        const responses = await res.json();
+        if (responses.length === 0) {
+            document.getElementById('results-table').innerHTML = '<em>No responses yet.</em>';
+            return;
+        }
+        let html = `<table><tr><th>Student Name</th><th>Timestamp</th><th>Score</th><th>Answers</th></tr>`;
+        responses.forEach(r => {
+            let score = (r.score !== undefined && r.score !== null && r.total !== undefined && r.total !== null) ? `${r.score} / ${r.total}` : '-';
+            html += `<tr><td>${r.student_name || ''}</td><td>${new Date(r.timestamp).toLocaleString()}</td><td>${score}</td><td><pre>${JSON.stringify(r.answers, null, 2)}</pre></td></tr>`;
+        });
+        html += `</table>`;
+        document.getElementById('results-table').innerHTML = html;
+    }
+
+    fetchSurveys();
+    </script>
+</body>
+</html> 

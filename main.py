@@ -42,6 +42,7 @@ class Response(Base):
     survey_id = Column(Integer, ForeignKey("surveys.id"))
     answers = Column(Text, nullable=False)  # Store as JSON string
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+    student_name = Column(String, nullable=True)
     survey = relationship("Survey", back_populates="responses")
 
 Base.metadata.create_all(bind=engine)
@@ -69,12 +70,14 @@ class SurveyOut(BaseModel):
 
 class ResponseCreate(BaseModel):
     answers: Any  # Should match the questions structure
+    student_name: Optional[str] = None
 
 class ResponseOut(BaseModel):
     id: int
     survey_id: int
     answers: Any
     timestamp: datetime.datetime
+    student_name: Optional[str] = None
     class Config:
         orm_mode = True
 
@@ -138,7 +141,8 @@ def submit_response(survey_id: int, response: ResponseCreate, db: Session = Depe
         raise HTTPException(status_code=404, detail="Survey not found")
     db_response = Response(
         survey_id=survey_id,
-        answers=json.dumps(response.answers)
+        answers=json.dumps(response.answers),
+        student_name=response.student_name
     )
     db.add(db_response)
     db.commit()
@@ -165,6 +169,7 @@ def submit_response(survey_id: int, response: ResponseCreate, db: Session = Depe
         "survey_id": db_response.survey_id,
         "answers": json.loads(db_response.answers),
         "timestamp": db_response.timestamp.isoformat(),
+        "student_name": db_response.student_name,
         "score": score,
         "total": total
     })
@@ -203,6 +208,7 @@ def list_responses(survey_id: int, db: Session = Depends(get_db)):
             id=r.id,
             survey_id=r.survey_id,
             answers=json.loads(r.answers),
-            timestamp=r.timestamp
+            timestamp=r.timestamp,
+            student_name=r.student_name
         ) for r in responses
     ] 
