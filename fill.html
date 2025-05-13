@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Fill Out Survey</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2em; }
+        .form-section { margin-bottom: 2em; border: 1px solid #ccc; padding: 1em; border-radius: 8px; }
+        .question { margin-bottom: 1em; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <a href="frontend.html">&larr; Back to Surveys</a>
+    <div class="form-section">
+        <h2>Fill Out Survey</h2>
+        <div id="survey-form"></div>
+        <div id="response-message"></div>
+    </div>
+    <script>
+    const API_URL = "http://localhost:8095";
+    const urlParams = new URLSearchParams(window.location.search);
+    const surveyId = urlParams.get('survey_id');
+
+    if (!surveyId) {
+        document.getElementById('survey-form').innerHTML = '<span class="error">No survey selected.</span>';
+    } else {
+        showSurveyForm(surveyId);
+    }
+
+    async function showSurveyForm(surveyId) {
+        const res = await fetch(`${API_URL}/surveys/${surveyId}`);
+        if (!res.ok) {
+            document.getElementById('survey-form').innerHTML = '<span class="error">Survey not found.</span>';
+            return;
+        }
+        const survey = await res.json();
+        let html = `<h3>${survey.title}</h3><p>${survey.description || ''}</p><form id="dynamic-survey-form">`;
+        survey.questions.forEach((q, idx) => {
+            html += `<div class="question"><label>${q.text}</label><br>`;
+            if (q.type === 'text') {
+                html += `<input type="text" name="q${idx}" required>`;
+            } else if (q.type === 'radio' && q.options) {
+                q.options.forEach(opt => {
+                    html += `<label><input type="radio" name="q${idx}" value="${opt}" required> ${opt}</label> `;
+                });
+            } else if (q.type === 'checkbox' && q.options) {
+                q.options.forEach(opt => {
+                    html += `<label><input type="checkbox" name="q${idx}" value="${opt}"> ${opt}</label> `;
+                });
+            }
+            html += '</div>';
+        });
+        html += `<button type="submit">Submit Response</button></form>`;
+        document.getElementById('survey-form').innerHTML = html;
+        document.getElementById('response-message').innerHTML = '';
+        document.getElementById('dynamic-survey-form').onsubmit = async function(e) {
+            e.preventDefault();
+            const form = e.target;
+            const answers = {};
+            survey.questions.forEach((q, idx) => {
+                if (q.type === 'checkbox') {
+                    const checkboxes = form.querySelectorAll(`[name='q${idx}']:checked`);
+                    answers[q.text] = Array.from(checkboxes).map(cb => cb.value);
+                } else {
+                    const val = form[`q${idx}`].value;
+                    answers[q.text] = val;
+                }
+            });
+            const resp = await fetch(`${API_URL}/surveys/${surveyId}/responses`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ answers })
+            });
+            if (resp.ok) {
+                const data = await resp.json();
+                if (data.score !== null && data.total !== null) {
+                    document.getElementById('response-message').innerHTML = `<span class="success">Response submitted!<br>Score: ${data.score} / ${data.total}</span>`;
+                } else {
+                    document.getElementById('response-message').innerHTML = '<span class="success">Response submitted!</span>';
+                }
+                form.reset();
+            } else {
+                document.getElementById('response-message').innerHTML = '<span class="error">Failed to submit response.</span>';
+            }
+        };
+    }
+    </script>
+</body>
+</html> 
